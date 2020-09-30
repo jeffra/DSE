@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Pretrain GPT2"""
 
 import torch
@@ -27,6 +26,7 @@ from megatron.model import GPT2Model
 from megatron.training import pretrain
 from megatron.utils import get_ltor_masks_and_position_ids
 from megatron.utils import reduce_losses
+
 
 def model_provider():
     """Build the model."""
@@ -60,11 +60,8 @@ def get_batch(data_iterator):
 
     # Get the masks and postition ids.
     attention_mask, loss_mask, position_ids = get_ltor_masks_and_position_ids(
-        tokens,
-        tokenizer.eod,
-        args.reset_position_ids,
-        args.reset_attention_mask,
-        args.eod_mask_loss)
+        tokens, tokenizer.eod, args.reset_position_ids,
+        args.reset_attention_mask, args.eod_mask_loss)
 
     return tokens, labels, loss_mask, attention_mask, position_ids
 
@@ -111,5 +108,7 @@ def train_valid_test_datasets_provider(train_val_test_num_samples):
 
 if __name__ == "__main__":
 
-    pretrain(train_valid_test_datasets_provider, model_provider, forward_step,
+    pretrain(train_valid_test_datasets_provider,
+             model_provider,
+             forward_step,
              args_defaults={'tokenizer_type': 'GPT2BPETokenizer'})
