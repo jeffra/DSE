@@ -1,22 +1,36 @@
 {
-  "train_batch_size": 16,
+  "train_batch_size": 2048,
   "gradient_accumulation_steps": 1,
   "steps_per_print": 1,
   "zero_optimization": {
-    "stage": 2
+    "stage": 2,
+    "allgather_partitions": true,
+    "reduce_scatter": true,
+    "allgather_bucket_size": 50000000,
+    "reduce_bucket_size": 50000000,
+    "overlap_comm": true
   },
-  "zero_allow_untested_optimizer": true,
+  "optimizer": {
+    "type": "Adam",
+    "params": {
+      "lr": 0.00015,
+      "max_grad_norm": 1.0,
+      "betas": [0.9, 0.95]
+    }
+  },
   "gradient_clipping": 1.0,
   "fp16": {
     "enabled": true,
+
     "loss_scale": 0,
     "loss_scale_window": 1000,
     "hysteresis": 2,
     "min_loss_scale": 1
   },
-  "activation_checkpointing": {
-    "partition_activations": true,
-    "contiguous_memory_optimization": false
-  },
-  "wall_clock_breakdown": false
+  "wall_clock_breakdown": true,
+  "tensorboard": {
+    "enabled": true,
+    "output_path": "/data/users/chengli1/gpt2/tensorboard_data/test",
+    "job_name": "test"
+  }
 }

@@ -10,13 +10,13 @@ CHECKPOINT_PATH=checkpoints/gpt2_345m
 
 
 python pretrain_gpt2.py \
-       --num-layers 24 \
-       --hidden-size 1024 \
+       --num-layers 4 \
+       --hidden-size 512 \
        --num-attention-heads 16 \
        --batch-size 8 \
        --seq-length 1024 \
        --max-position-embeddings 1024 \
-       --train-iters 500000 \
+       --train-iters 5000 \
        --lr-decay-iters 320000 \
        --save $CHECKPOINT_PATH \
        --load $CHECKPOINT_PATH \

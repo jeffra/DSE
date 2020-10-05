@@ -89,6 +89,25 @@ def get_checkpoint_tracker_filename(checkpoints_path):
     return os.path.join(checkpoints_path, 'latest_checkpointed_iteration.txt')
 
 
+def save_ds_checkpoint(iteration, model, args):
+    """Save a model checkpoint."""
+
+    sd = {}
+    sd['iteration'] = iteration
+    # rng states.
+    if not args.no_save_rng:
+        sd['random_rng_state'] = random.getstate()
+        sd['np_rng_state'] = np.random.get_state()
+        sd['torch_rng_state'] = torch.get_rng_state()
+        sd['cuda_rng_state'] = torch.cuda.get_rng_state()
+        sd['rng_tracker_states'] = mpu.get_cuda_rng_tracker().get_states()
+
+    #megatron model uses state_dict_for_save_checkpointing instead of the standard state_dict
+    #state_dict is used by deepspeed for module saving so it needs to point to the right function
+    model.module.state_dict = model.module.state_dict_for_save_checkpoint
+    model.save_checkpoint(args.save, iteration, client_state=sd)
+
+
 def save_checkpoint(iteration, model, optimizer, lr_scheduler):
     """Save a model checkpoint."""
     args = get_args()
@@ -181,8 +200,8 @@ def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load'):
         tracker_filename)
 
     if args.deepspeed:
-
-        checkpoint_name, sd = model.load_checkpoint(args.load, iteration)
+        checkpoint_name, state_dict = model.load_checkpoint(
+            load_dir, iteration)
 
         if checkpoint_name is None:
             if mpu.get_data_parallel_rank() == 0:

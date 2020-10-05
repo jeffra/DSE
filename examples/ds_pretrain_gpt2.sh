@@ -13,8 +13,8 @@ script_dir=$(dirname $script_path)
 
 config_json="$script_dir/ds_zero_stage_2_config.json"
 gpt_options=" \
-       --num-layers 24 \
-       --hidden-size 1024 \
+       --num-layers 4 \
+       --hidden-size 512 \
        --num-attention-heads 16 \
        --batch-size 8 \
        --seq-length 1024 \
@@ -39,7 +39,6 @@ gpt_options=" \
        --save-interval 100000 \
        --eval-interval 1000 \
        --eval-iters 10 \
-       --checkpoint-activations \
        --fp16 \
 
 "

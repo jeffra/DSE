@@ -43,6 +43,8 @@ def parse_args(extra_args_provider=None,
     parser = _add_data_args(parser)
     parser = _add_autoresume_args(parser)
     parser = _add_realm_args(parser)
+    parser = _add_zero_args(parser)
+    parser = _add_activation_checkpoint_args(parser)
 
     # Custom arguments.
     if extra_args_provider is not None:
@@ -658,4 +660,46 @@ def _add_realm_args(parser):
         type=int,
         default=1000,
         help='After how many batches should the indexer report progress')
+    return parser
+
+
+def _add_zero_args(parser):
+    """Text generate arguments."""
+
+    group = parser.add_argument_group('Text generation', 'configurations')
+    group.add_argument("--zero-stage", type=int, default=1.0)
+    group.add_argument('--zero-reduce-scatter',
+                       action='store_true',
+                       help='Use reduce scatter if specified')
+    group.add_argument('--zero-contigious-gradients',
+                       action='store_true',
+                       help='Use contigious memory optimizaiton if specified')
+    group.add_argument("--zero-reduce-bucket-size", type=int, default=0.0)
+    group.add_argument("--zero-allgather-bucket-size", type=int, default=0.0)
+    return parser
+
+
+def _add_activation_checkpoint_args(parser):
+    group = parser.add_argument_group('Activation Checkpointing',
+                                      'Checkpointing Configurations')
+    group.add_argument(
+        '--partition-activations',
+        action='store_true',
+        help='partition Activations across GPUs before checkpointing.')
+    group.add_argument('--contigious-checkpointing',
+                       action='store_true',
+                       help='Contigious memory checkpointing for activatoins.')
+    group.add_argument('--checkpoint-in-cpu',
+                       action='store_true',
+                       help='Move the activation checkpoints to CPU.')
+    group.add_argument(
+        '--synchronize-each-layer',
+        action='store_true',
+        help=
+        'does a synchronize at the beginning and end of each checkpointed layer.'
+    )
+    group.add_argument(
+        '--profile-backward',
+        action='store_true',
+        help='Enables backward pass profiling for checkpointed layers.')
     return parser
