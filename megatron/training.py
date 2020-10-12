@@ -246,7 +246,6 @@ def setup_model_and_optimizer(model_provider_func):
             lr_scheduler=lr_scheduler,
             mpu=mpu,
             dist_init_required=False)
-
     if args.load is not None:
         args.iteration = load_checkpoint(model, optimizer, lr_scheduler)
     else:

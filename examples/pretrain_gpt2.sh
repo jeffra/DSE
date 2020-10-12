@@ -3,10 +3,10 @@
 # Runs the "345M" parameter model
 
 RANK=0
-WORLD_SIZE=1
+WORLD_SIZE=8
 
 DATA_PATH=data/webtext/webtext_text_document
-CHECKPOINT_PATH=checkpoints/gpt2_345m
+CHECKPOINT_PATH=checkpoints/gpt2_345m_oo
 
 
 python pretrain_gpt2.py \
@@ -16,10 +16,8 @@ python pretrain_gpt2.py \
        --batch-size 8 \
        --seq-length 1024 \
        --max-position-embeddings 1024 \
-       --train-iters 5000 \
+       --train-iters 100 \
        --lr-decay-iters 320000 \
-       --save $CHECKPOINT_PATH \
-       --load $CHECKPOINT_PATH \
        --data-path $DATA_PATH \
        --vocab-file data/gpt2-vocab.json \
        --merge-file data/gpt2-merges.txt \
@@ -37,7 +35,8 @@ python pretrain_gpt2.py \
        --save-interval 10000 \
        --eval-interval 1000 \
        --eval-iters 10 \
-       --fp16
+       --fp16 \
+       --tensorboard-dir "/data/users/chengli1/gpt2/tensorboard_data/1_8"
 
 
 set +x
