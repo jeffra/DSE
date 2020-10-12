@@ -27,10 +27,5 @@
     "hysteresis": 2,
     "min_loss_scale": 1
   },
-  "wall_clock_breakdown": true,
-  "tensorboard": {
-    "enabled": true,
-    "output_path": "/data/users/chengli1/gpt2/tensorboard_data/test",
-    "job_name": "test"
-  }
+  "wall_clock_breakdown": true
 }
