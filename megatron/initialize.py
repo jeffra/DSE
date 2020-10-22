@@ -105,11 +105,19 @@ def initialize_megatron(extra_args_provider=None,
     '''
 
 
-def set_deepspeed_activation_checkpointing(args):
+def setup_deepspeed_random_and_activation_checkpointing(args):
+    num_layers = args.num_layers // args.checkpoint_num_layers
+    num_layers = num_layers if args.num_layers % args.checkpoint_num_layers == 0 else num_layers + 1
 
-    deepspeed.checkpointing.configure(mpu,
-                                      deepspeed_config=args.deepspeed_config,
-                                      num_checkpoints=args.num_layers)
+    deepspeed.checkpointing.configure(
+        mpu,
+        partition_activations=args.partition_activations,
+        contiguous_checkpointing=args.contigious_checkpointing,
+        num_checkpoints=num_layers,
+        checkpoint_in_cpu=args.checkpoint_in_cpu,
+        synchronize=args.synchronize_each_layer,
+        profile=args.profile_backward)
+
     mpu.checkpoint = deepspeed.checkpointing.checkpoint
     mpu.get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
     mpu.model_parallel_cuda_manual_seed = deepspeed.checkpointing.model_parallel_cuda_manual_seed
@@ -163,7 +171,7 @@ def _initialize_distributed():
     # Optional DeepSpeed Activation Checkpointing Features
     #
     if args.deepspeed and args.deepspeed_activation_checkpointing:
-        set_deepspeed_activation_checkpointing(args)
+        setup_deepspeed_random_and_activation_checkpointing(args)
 
 
 def _init_autoresume():
