@@ -1,3 +1,6 @@
 [submodule "megatron"]
 	path = megatron
 	url = https://github.com/jeffra/DSE.git
+[submodule "megatron-lm/upstream"]
+	path = megatron-lm/upstream
+	url = https://github.com/jeffra/DSE.git
