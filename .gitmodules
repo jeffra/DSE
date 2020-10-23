@@ -10,3 +10,6 @@
 [submodule "megatron-lm/sparse_attention"]
 	path = megatron-lm/sparse_attention
 	url = https://github.com/jeffra/DSE.git
+[submodule "megatron-lm/baseline"]
+	path = megatron-lm/baseline
+	url = https://github.com/jeffra/DSE.git
