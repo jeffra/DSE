@@ -71,6 +71,8 @@ def get_batch(data_iterator):
     return tokens, labels, loss_mask, attention_mask, position_ids
 
 
+# pretend this is the addition for our cool sparse attention feature
+
 def forward_step(data_iterator, model):
     """Forward step."""
     args = get_args()
