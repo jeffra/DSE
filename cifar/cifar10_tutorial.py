@@ -6,6 +6,9 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 
+import argparse
+import deepspeed
+
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -15,10 +18,6 @@ trainset = torchvision.datasets.CIFAR10(root='./data',
                                         train=True,
                                         download=True,
                                         transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset,
-                                          batch_size=4,
-                                          shuffle=True,
-                                          num_workers=2)
 
 testset = torchvision.datasets.CIFAR10(root='./data',
                                        train=False,
@@ -31,6 +30,27 @@ testloader = torch.utils.data.DataLoader(testset,
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
            'ship', 'truck')
+
+def get_args():
+    parser = argparse.ArgumentParser(description='CIFAR')
+
+    # train
+    parser.add_argument('-e',
+                        '--epochs',
+                        default=2,
+                        type=int,
+                        help='number of total epochs (default: 30)')
+    parser.add_argument('--local_rank',
+                        type=int,
+                        default=-1,
+                        help='local rank passed from distributed launcher')
+
+    # Include DeepSpeed configuration arguments
+    parser = deepspeed.add_config_arguments(parser)
+
+    args = parser.parse_args()
+
+    return args
 
 
 class Net(nn.Module):
@@ -55,28 +75,35 @@ class Net(nn.Module):
 
 net = Net()
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-net.to(device)
-
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-for epoch in range(1):  # loop over the dataset multiple times
+# Initialize DeepSpeed to use the following features
+# 1) Distributed model
+# 2) Distributed data loader
+# 3) DeepSpeed optimizer
+args = get_args()
+engine, optimizer, trainloader, __ = deepspeed.initialize(
+    args=args,
+    model=net,
+    optimizer=optimizer,
+    training_data=trainset)
 
+
+for epoch in range(args.epochs):  # loop over the dataset multiple times
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
         #inputs, labels = data
-        inputs, labels = data[0].to(device), data[1].to(device)
-
-        # zero the parameter gradients
-        optimizer.zero_grad()
+        inputs = data[0].to(engine.device)
+        labels = data[1].to(engine.device)
 
         # forward + backward + optimize
-        outputs = net(inputs)
+        outputs = engine(inputs)
         loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+
+        engine.backward(loss)
+        engine.step()
 
         # print statistics
         running_loss += loss.item()
