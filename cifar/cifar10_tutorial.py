@@ -60,22 +60,6 @@ testloader = torch.utils.data.DataLoader(testset,
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
            'ship', 'truck')
 
-'''
-def get_args():
-    parser = argparse.ArgumentParser(description='CIFAR')
-
-    # train
-    parser.add_argument('-e',
-                        '--epochs',
-                        default=2,
-                        type=int,
-                        help='number of total epochs (default: 30)')
-    args = parser.parse_args()
-
-    return args
-'''
-
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
