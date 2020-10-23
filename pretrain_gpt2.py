@@ -28,6 +28,8 @@ from megatron.training import pretrain
 from megatron.utils import get_ltor_masks_and_position_ids
 from megatron.utils import reduce_losses
 
+# pretend this is a great DeepSpeed change too
+
 def model_provider():
     """Build the model."""
 
