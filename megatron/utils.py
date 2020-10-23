@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""General utilities."""
+"""General utilities for Megatron."""
 
 import sys
 
