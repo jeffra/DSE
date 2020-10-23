@@ -117,8 +117,8 @@ for epoch in range(args.epochs):  # loop over the dataset multiple times
     for i, data in enumerate(trainloader, 0):
         # get the inputs; data is a list of [inputs, labels]
         #inputs, labels = data
-        inputs = data[0].to('cuda')
-        labels = data[1].to('cuda')
+        inputs = data[0].to(engine.device)
+        labels = data[1].to(engine.device)
 
         # forward + backward + optimize
         outputs = engine(inputs)
@@ -154,8 +154,9 @@ correct = 0
 total = 0
 with torch.no_grad():
     for data in testloader:
-        images, labels = data
-        outputs = net(images)
+        images = data[0].to(engine.device)
+        labels = data[1].to(engine.device)
+        outputs = engine(images)
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
