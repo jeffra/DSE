@@ -7,3 +7,6 @@
 [submodule "megatron-lm/deepspeed"]
 	path = megatron-lm/deepspeed
 	url = https://github.com/jeffra/DSE.git
+[submodule "megatron-lm/sparse_attention"]
+	path = megatron-lm/sparse_attention
+	url = https://github.com/jeffra/DSE.git
