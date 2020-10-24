@@ -13,3 +13,11 @@
 [submodule "megatron-lm/baseline"]
 	path = megatron-lm/baseline
 	url = https://github.com/jeffra/DSE.git
+[submodule "cifar10/baseline"]
+	path = cifar10/baseline
+	url = https://github.com/jeffra/DSE.git
+	branch = cifar10
+[submodule "cifar10/deepspeed"]
+	path = cifar10/deepspeed
+	url = https://github.com/jeffra/DSE.git
+	branch = cifar10-deepspeed
