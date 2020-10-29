@@ -111,7 +111,7 @@ def save_ds_checkpoint(iteration, model, args):
 def save_checkpoint(iteration, model, optimizer, lr_scheduler):
     """Save a model checkpoint."""
     args = get_args()
-
+    
     if args.deepspeed:
         save_ds_checkpoint(iteration, model, args)
     else:

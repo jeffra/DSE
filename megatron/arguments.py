@@ -238,13 +238,21 @@ def _add_regularization_args(parser):
                        type=float,
                        default=1.0,
                        help='Gradient clipping based on global L2 norm.')
-    group.add_argument('--adam-beta1', type=float, default=0.9,
-                       help='First coefficient for computing running averages of'
-                       'gradient and its square')
-    group.add_argument('--adam-beta2', type=float, default=0.999,
-                       help='Second coefficient for computing running averages of'
-                       'gradient and its square')
-    group.add_argument('--adam-eps', type=float, default=1e-08,
+    group.add_argument(
+        '--adam-beta1',
+        type=float,
+        default=0.9,
+        help='First coefficient for computing running averages of'
+        'gradient and its square')
+    group.add_argument(
+        '--adam-beta2',
+        type=float,
+        default=0.999,
+        help='Second coefficient for computing running averages of'
+        'gradient and its square')
+    group.add_argument('--adam-eps',
+                       type=float,
+                       default=1e-08,
                        help='Term added to the denominator to improve'
                        'numerical stability')
 
@@ -303,9 +311,11 @@ def _add_training_args(parser):
                        action='store_true',
                        help='Enable fusion of query_key_value_scaling '
                        'general masking and softmax.')
-    group.add_argument('--bias-gelu-fusion', action='store_true',
-                        help='Enable bias and gelu fusion.')
-    group.add_argument('--bias-dropout-fusion', action='store_true',
+    group.add_argument('--bias-gelu-fusion',
+                       action='store_true',
+                       help='Enable bias and gelu fusion.')
+    group.add_argument('--bias-dropout-fusion',
+                       action='store_true',
                        help='Enable bias and dropout fusion.')
 
     group.add_argument('--cpu-optimizer',

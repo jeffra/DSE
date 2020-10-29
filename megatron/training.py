@@ -97,8 +97,7 @@ def pretrain(train_valid_test_dataset_provider,
 
     iteration = 0
     if args.do_train and args.train_iters > 0:
-        iteration = train(forward_step_func,
-                          model, optimizer, lr_scheduler,
+        iteration = train(forward_step_func, model, optimizer, lr_scheduler,
                           train_data_iterator, valid_data_iterator)
 
     if args.do_valid:
@@ -170,8 +169,11 @@ def get_optimizer(model):
                 param.model_parallel = False
 
     # Use Adam.
-    optimizer = Adam(param_groups, lr=args.lr, weight_decay=args.weight_decay,
-        betas=(args.adam_beta1, args.adam_beta2), eps=args.adam_eps)
+    optimizer = Adam(param_groups,
+                     lr=args.lr,
+                     weight_decay=args.weight_decay,
+                     betas=(args.adam_beta1, args.adam_beta2),
+                     eps=args.adam_eps)
 
     # Wrap into fp16 optimizer.
     if args.fp16:
@@ -344,7 +346,8 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
     got_nan = False
     for key in loss_dict:
         if not skipped_iter:
-            total_loss_dict[key] = total_loss_dict.get(key, 0.) + loss_dict[key]
+            total_loss_dict[key] = total_loss_dict.get(key,
+                                                       0.) + loss_dict[key]
         else:
             value = loss_dict[key].float().sum().item()
             is_nan = value == float('inf') or \
@@ -352,8 +355,8 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
                      value != value
             got_nan = got_nan or is_nan
 
-    total_loss_dict[got_nan_key] = total_loss_dict.get(
-        got_nan_key, 0) + int(got_nan)
+    total_loss_dict[got_nan_key] = total_loss_dict.get(got_nan_key,
+                                                       0) + int(got_nan)
 
     # Logging.
     timers_to_log = []
@@ -436,10 +439,8 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
     report_memory_flag = True
     while iteration < args.train_iters:
         loss_dict, skipped_iter = train_step(forward_step_func,
-                                             train_data_iterator,
-                                             model,
-                                             optimizer,
-                                             lr_scheduler)
+                                             train_data_iterator, model,
+                                             optimizer, lr_scheduler)
         iteration += 1
 
         # Logging.

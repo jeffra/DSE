@@ -173,6 +173,11 @@ def _initialize_distributed():
     if args.deepspeed and args.deepspeed_activation_checkpointing:
         setup_deepspeed_random_and_activation_checkpointing(args)
 
+    # Optional DeepSpeed Activation Checkpointing Features
+    #
+    if args.deepspeed and args.deepspeed_activation_checkpointing:
+        setup_deepspeed_random_and_activation_checkpointing(args)
+
 
 def _init_autoresume():
     """Set autoresume start time."""
