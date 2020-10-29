@@ -168,12 +168,26 @@ def get_optimizer(model):
             if not hasattr(param, 'model_parallel'):
                 param.model_parallel = False
 
-    # Use Adam.
-    optimizer = Adam(param_groups,
-                     lr=args.lr,
-                     weight_decay=args.weight_decay,
-                     betas=(args.adam_beta1, args.adam_beta2),
-                     eps=args.adam_eps)
+    if args.cpu_optimizer:
+        if args.cpu_torch_adam:
+            cpu_adam_optimizer = torch.optim.Adam
+        else:
+            from deepspeed.ops.adam import DeepSpeedCPUAdam
+            cpu_adam_optimizer = DeepSpeedCPUAdam
+        optimizer = cpu_adam_optimizer(param_groups,
+                                       lr=args.lr,
+                                       weight_decay=args.weight_decay)
+    else:
+        # Use Adam.
+        optimizer = Adam(param_groups,
+                         lr=args.lr,
+                         weight_decay=args.weight_decay,
+                         betas=(args.adam_beta1, args.adam_beta2),
+                         eps=args.adam_eps)
+
+    if args.deepspeed:
+        # fp16 wrapper is not required for DeepSpeed.
+        return optimizer
 
     # Wrap into fp16 optimizer.
     if args.fp16:
