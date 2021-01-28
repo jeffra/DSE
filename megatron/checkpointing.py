@@ -105,7 +105,7 @@ def save_ds_checkpoint(iteration, model, args):
     #megatron model uses state_dict_for_save_checkpointing instead of the standard state_dict
     #state_dict is used by deepspeed for module saving so it needs to point to the right function
     model.module.state_dict = model.module.state_dict_for_save_checkpoint
-    model.save_checkpoint(args.save, iteration, client_state=sd)
+    model.save_checkpoint(args.save, client_state=sd)
 
 
 def save_checkpoint(iteration, model, optimizer, lr_scheduler):
