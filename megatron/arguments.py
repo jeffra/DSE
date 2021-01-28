@@ -373,6 +373,8 @@ def _add_distributed_args(parser):
 
     group.add_argument('--model-parallel-size', type=int, default=1,
                        help='Size of the model parallel.')
+    group.add_argument('--pipe-parallel-size', type=int, default=0,
+                       help='Size of the pipeline parallel. Disable with 0.')
     group.add_argument('--distributed-backend', default='nccl',
                        choices=['nccl', 'gloo'],
                        help='Which backend to use for distributed training.')

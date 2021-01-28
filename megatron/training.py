@@ -247,6 +247,10 @@ def setup_model_and_optimizer(model_provider_func):
             lr_scheduler=lr_scheduler,
             mpu=mpu,
             dist_init_required=False)
+
+        if args.pipe_parallel_size > 0:
+            model.set_batch_fn(model.module._megatron_batch_fn)
+
     if args.load is not None:
         args.iteration = load_checkpoint(model, optimizer, lr_scheduler)
     else:
@@ -316,6 +320,10 @@ def train_step(forward_step_func, data_iterator,
     args = get_args()
     timers = get_timers()
 
+    # Pipeline parallelism schedules forward/backward/step
+    if args.pipe_parallel_size > 0:
+        return train_step_pipe(model, data_iterator)
+
     # Forward model for one step.
     timers('forward').start()
     loss, loss_reduced = forward_step_func(data_iterator, model)
@@ -341,6 +349,26 @@ def train_step(forward_step_func, data_iterator,
     timers('optimizer').stop()
 
     return loss_reduced, skipped_iter
+
+def train_step_pipe(model, data_iterator):
+    """Single training step with DeepSpeed's pipeline parallel engine. """
+    args = get_args()
+    timers = get_timers()
+
+    assert args.deepspeed
+    loss = model.train_batch(data_iter=data_iterator)
+    loss_dict = {'lm loss': loss}
+    if args.fp16 and model.optimizer.overflow:
+        skipped_iter = 1
+    else:
+        skipped_iter = 0
+
+    # Don't break Megatron's timers because we changed code paths.
+    for t in ['forward', 'backward', 'allreduce', 'optimizer', 'batch generator',
+              'data loader']:
+        timers(t).reset()
+    return loss_dict, skipped_iter
+
 
 
 def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
@@ -567,11 +595,20 @@ def build_train_valid_test_data_iterators(
     (train_dataloader, valid_dataloader, test_dataloader) = (None, None, None)
 
     print_rank_0('> building train, validation, and test datasets ...')
+
+    # Ensure only the first/last pipeline stages have data loaders
+    if args.pipe_parallel_size > 0:
+        firststage = mpu.get_pipe_parallel_rank() == 0
+        laststage = mpu.get_pipe_parallel_rank() == mpu.get_pipe_parallel_size() - 1
+        pipe_load = first_stage or last_stage
+    else:
+        pipe_load = True
+
     # Data loader only on rank 0 of each model parallel group.
-    if mpu.get_model_parallel_rank() == 0:
+    if mpu.get_model_parallel_rank() == 0 and pipe_load:
         # Rank, size, and global batch size.
         data_parallel_size = mpu.get_data_parallel_world_size()
-        global_batch_size = args.batch_size * data_parallel_size
+        global_batch_size = args.batch_size * data_parallel_size * args.gas
 
         # Number of train/valid/test samples.
         train_iters = args.train_iters
@@ -605,9 +642,14 @@ def build_train_valid_test_data_iterators(
         flags = torch.cuda.LongTensor([0, 0, 0])
 
     # Broadcast num tokens.
-    torch.distributed.broadcast(flags,
-                                mpu.get_model_parallel_src_rank(),
-                                group=mpu.get_model_parallel_group())
+    if args.pipeline_parallel_size > 0:
+        # Only first/last pipeline stages have data loaders, so pipeline parallelism should
+        # broadcast globally instead of just the model parallel group.
+        torch.distributed.broadcast(flags, src=0)
+    else:
+        torch.distributed.broadcast(flags,
+                                    mpu.get_model_parallel_src_rank(),
+                                    group=mpu.get_model_parallel_group())
     args.do_train = flags[0].item()
     args.do_valid = flags[1].item()
     args.do_test = flags[2].item()
