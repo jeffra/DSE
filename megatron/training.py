@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Pretrain utilities."""
 
 from datetime import datetime
@@ -42,11 +43,8 @@ from megatron.utils import report_memory
 import deepspeed
 
 
-def pretrain(train_valid_test_dataset_provider,
-             model_provider,
-             forward_step_func,
-             extra_args_provider=None,
-             args_defaults={}):
+def pretrain(train_valid_test_dataset_provider, model_provider,
+             forward_step_func, extra_args_provider=None, args_defaults={}):
     """Main training program.
 
     This function will run the followings in the order provided:
@@ -97,14 +95,15 @@ def pretrain(train_valid_test_dataset_provider,
 
     iteration = 0
     if args.do_train and args.train_iters > 0:
-        iteration = train(forward_step_func, model, optimizer, lr_scheduler,
+        iteration = train(forward_step_func,
+                          model, optimizer, lr_scheduler,
                           train_data_iterator, valid_data_iterator)
 
     if args.do_valid:
         prefix = 'the end of training for val data'
         evaluate_and_print_results(prefix, forward_step_func,
-                                   valid_data_iterator, model, iteration,
-                                   False)
+                                   valid_data_iterator, model,
+                                   iteration, False)
 
     if args.save and iteration != 0:
         save_checkpoint(iteration, model, optimizer, lr_scheduler)
@@ -113,7 +112,8 @@ def pretrain(train_valid_test_dataset_provider,
         # Run on test data.
         prefix = 'the end of training for test data'
         evaluate_and_print_results(prefix, forward_step_func,
-                                   test_data_iterator, model, 0, True)
+                                   test_data_iterator, model,
+                                   0, True)
 
 
 def get_model(model_provider_func):
@@ -127,8 +127,7 @@ def get_model(model_provider_func):
     if mpu.get_data_parallel_rank() == 0:
         print(' > number of parameters on model parallel rank {}: {}'.format(
             mpu.get_model_parallel_rank(),
-            sum([p.nelement() for p in model.parameters()])),
-              flush=True)
+            sum([p.nelement() for p in model.parameters()])), flush=True)
 
     # GPU allocation.
     model.cuda(torch.cuda.current_device())
@@ -140,9 +139,7 @@ def get_model(model_provider_func):
     # Wrap model for distributed training."""
     if args.DDP_impl == 'torch':
         i = torch.cuda.current_device()
-        model = torchDDP(model,
-                         device_ids=[i],
-                         output_device=i,
+        model = torchDDP(model, device_ids=[i], output_device=i,
                          process_group=mpu.get_data_parallel_group())
         return model
     if args.DDP_impl == 'local':
@@ -197,8 +194,7 @@ def get_optimizer(model):
                                    dynamic_loss_args={
                                        'scale_window': args.loss_scale_window,
                                        'min_scale': args.min_scale,
-                                       'delayed_shift': args.hysteresis
-                                   })
+                                       'delayed_shift': args.hysteresis})
 
     return optimizer
 
@@ -257,8 +253,7 @@ def setup_model_and_optimizer(model_provider_func):
     while hasattr(unwrapped_model, 'module'):
         unwrapped_model = unwrapped_model.module
 
-    if args.iteration == 0 and hasattr(unwrapped_model,
-                                       'init_state_dict_from_bert'):
+    if args.iteration == 0 and hasattr(unwrapped_model, 'init_state_dict_from_bert'):
         print("Initializing ICT from pretrained BERT model", flush=True)
         unwrapped_model.init_state_dict_from_bert()
 
@@ -311,8 +306,8 @@ def backward_step(optimizer, model, loss):
         timers('backward-clip-grad').stop()
 
 
-def train_step(forward_step_func, data_iterator, model, optimizer,
-               lr_scheduler):
+def train_step(forward_step_func, data_iterator,
+               model, optimizer, lr_scheduler):
     """Single training step."""
     args = get_args()
     timers = get_timers()
@@ -360,8 +355,7 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
     got_nan = False
     for key in loss_dict:
         if not skipped_iter:
-            total_loss_dict[key] = total_loss_dict.get(key,
-                                                       0.) + loss_dict[key]
+            total_loss_dict[key] = total_loss_dict.get(key, 0.) + loss_dict[key]
         else:
             value = loss_dict[key].float().sum().item()
             is_nan = value == float('inf') or \
@@ -369,8 +363,8 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
                      value != value
             got_nan = got_nan or is_nan
 
-    total_loss_dict[got_nan_key] = total_loss_dict.get(got_nan_key,
-                                                       0) + int(got_nan)
+    total_loss_dict[got_nan_key] = total_loss_dict.get(
+        got_nan_key, 0) + int(got_nan)
 
     # Logging.
     timers_to_log = []
@@ -378,7 +372,6 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
     def add_to_logging(name):
         if name in timers.timers:
             timers_to_log.append(name)
-
     add_to_logging('forward')
     add_to_logging('backward')
     add_to_logging('backward-backward')
@@ -398,7 +391,8 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
         normalizer = iteration % args.log_interval
         if normalizer == 0:
             normalizer = args.log_interval
-        timers.write(timers_to_log, writer, iteration, normalizer=normalizer)
+        timers.write(timers_to_log, writer, iteration,
+                     normalizer=normalizer)
 
     if iteration % args.log_interval == 0:
         elapsed_time = timers('interval time').elapsed()
@@ -453,8 +447,10 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
     report_memory_flag = True
     while iteration < args.train_iters:
         loss_dict, skipped_iter = train_step(forward_step_func,
-                                             train_data_iterator, model,
-                                             optimizer, lr_scheduler)
+                                             train_data_iterator,
+                                             model,
+                                             optimizer,
+                                             lr_scheduler)
         iteration += 1
 
         # Logging.
@@ -482,8 +478,8 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
            args.do_valid:
             prefix = 'iteration {}'.format(iteration)
             evaluate_and_print_results(prefix, forward_step_func,
-                                       valid_data_iterator, model, iteration,
-                                       False)
+                                       valid_data_iterator, model,
+                                       iteration, False)
 
         if args.exit_interval and iteration % args.exit_interval == 0:
             torch.distributed.barrier()
@@ -510,14 +506,15 @@ def evaluate(forward_step_func, data_iterator, model, verbose=False):
         while iteration < args.eval_iters:
             iteration += 1
             if verbose and iteration % args.log_interval == 0:
-                print_rank_0('Evaluating iter {}/{}'.format(
-                    iteration, args.eval_iters))
+                print_rank_0('Evaluating iter {}/{}'.format(iteration,
+                                                            args.eval_iters))
             # Forward evaluation.
             _, loss_dict = forward_step_func(data_iterator, model)
-            '''when contiguous memory optimizations are enabled, the buffers
-            allocated by the optimizations are deallocated during backward pass
-            in the absence of backward pass the buffers should be reset after each
-            forward pass'''
+
+            # When contiguous memory optimizations are enabled, the buffers
+            # allocated by the optimizations are deallocated during backward pass
+            # in the absence of backward pass the buffers should be reset after each
+            # forward pass
             if args.deepspeed and args.deepspeed_activation_checkpointing:
                 deepspeed.checkpointing.reset()
 
@@ -534,26 +531,22 @@ def evaluate(forward_step_func, data_iterator, model, verbose=False):
     return total_loss_dict
 
 
-def evaluate_and_print_results(prefix,
-                               forward_step_func,
-                               data_iterator,
-                               model,
-                               iteration,
-                               verbose=False):
+def evaluate_and_print_results(prefix, forward_step_func,
+                               data_iterator, model,
+                               iteration, verbose=False):
     """Helper function to evaluate and dump results on screen."""
     writer = get_tensorboard_writer()
 
-    total_loss_dict = evaluate(forward_step_func, data_iterator, model,
-                               verbose)
+    total_loss_dict = evaluate(forward_step_func, data_iterator, model, verbose)
     string = ' validation loss at {} | '.format(prefix)
     for key in total_loss_dict:
-        string += '{} value: {:.6E} | '.format(key,
-                                               total_loss_dict[key].item())
+        string += '{} value: {:.6E} | '.format(key, total_loss_dict[key].item())
         ppl = math.exp(min(20, total_loss_dict[key].item()))
         string += '{} PPL: {:.6E} | '.format(key, ppl)
         if writer and torch.distributed.get_rank() == 0:
             writer.add_scalar('{} value'.format(key),
-                              total_loss_dict[key].item(), iteration)
+                              total_loss_dict[key].item(),
+                              iteration)
             writer.add_scalar('{} ppl'.format(key), ppl, iteration)
 
     length = len(string) + 1
@@ -580,17 +573,13 @@ def build_train_valid_test_data_iterators(
         train_iters = args.train_iters
         eval_iters = (train_iters // args.eval_interval + 1) * args.eval_iters
         test_iters = args.eval_iters
-        train_val_test_num_samples = [
-            train_iters * global_batch_size, eval_iters * global_batch_size,
-            test_iters * global_batch_size
-        ]
+        train_val_test_num_samples = [train_iters * global_batch_size,
+                                      eval_iters * global_batch_size,
+                                      test_iters * global_batch_size]
         print_rank_0(' > datasets target sizes (minimum size):')
-        print_rank_0('    train:      {}'.format(
-            train_val_test_num_samples[0]))
-        print_rank_0('    validation: {}'.format(
-            train_val_test_num_samples[1]))
-        print_rank_0('    test:       {}'.format(
-            train_val_test_num_samples[2]))
+        print_rank_0('    train:      {}'.format(train_val_test_num_samples[0]))
+        print_rank_0('    validation: {}'.format(train_val_test_num_samples[1]))
+        print_rank_0('    test:       {}'.format(train_val_test_num_samples[2]))
 
         # Build the datasets.
         train_ds, valid_ds, test_ds = build_train_valid_test_datasets_provider(
@@ -607,8 +596,7 @@ def build_train_valid_test_data_iterators(
         do_test = test_dataloader is not None and args.eval_iters > 0
         # Need to broadcast num_tokens and num_type_tokens.
         flags = torch.cuda.LongTensor(
-            [int(do_train), int(do_valid),
-             int(do_test)])
+            [int(do_train), int(do_valid), int(do_test)])
     else:
         flags = torch.cuda.LongTensor([0, 0, 0])
 
@@ -624,15 +612,15 @@ def build_train_valid_test_data_iterators(
     if train_dataloader is not None:
         train_dataloader.batch_sampler.start_iter = args.iteration % \
             len(train_dataloader)
-        print_rank_0('setting training data start iteration to {}'.format(
-            train_dataloader.batch_sampler.start_iter))
+        print_rank_0('setting training data start iteration to {}'.
+                     format(train_dataloader.batch_sampler.start_iter))
     if valid_dataloader is not None:
         start_iter_val = (args.iteration // args.eval_interval) * \
             args.eval_iters
         valid_dataloader.batch_sampler.start_iter = start_iter_val % \
             len(valid_dataloader)
-        print_rank_0('setting validation data start iteration to {}'.format(
-            valid_dataloader.batch_sampler.start_iter))
+        print_rank_0('setting validation data start iteration to {}'.
+                     format(valid_dataloader.batch_sampler.start_iter))
 
     # Build iterators.
     if train_dataloader is not None:
