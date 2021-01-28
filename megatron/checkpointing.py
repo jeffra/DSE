@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Input/output checkpointing."""
 
 import os
@@ -68,19 +69,18 @@ def ensure_directory_exists(filename):
         os.makedirs(dirname)
 
 
-def get_checkpoint_name(checkpoints_path,
-                        iteration,
-                        release=False,
-                        mp_rank=None):
+def get_checkpoint_name(checkpoints_path, iteration,
+                        release=False, mp_rank=None):
     """A unified checkpoint name."""
     if release:
         directory = 'release'
     else:
         directory = 'iter_{:07d}'.format(iteration)
-    return os.path.join(
-        checkpoints_path, directory, 'mp_rank_{:02d}'.format(
-            mpu.get_model_parallel_rank() if mp_rank is None else mp_rank),
-        'model_optim_rng.pt')
+    return os.path.join(checkpoints_path, directory,
+                        'mp_rank_{:02d}'.format(
+                            mpu.get_model_parallel_rank() if mp_rank is None
+                            else mp_rank),
+                        'model_optim_rng.pt')
 
 
 def get_checkpoint_tracker_filename(checkpoints_path):
@@ -264,7 +264,7 @@ def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load'):
                              'iteration from checkpoint {}, exiting'.format(
                                  checkpoint_name))
                 sys.exit()
-
+ 
 
     # Check arguments.
     if 'args' in state_dict:
@@ -296,10 +296,7 @@ def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load'):
     return iteration
 
 
-def load_ict_checkpoint(model,
-                        only_query_model=False,
-                        only_block_model=False,
-                        from_realm_chkpt=False):
+def load_ict_checkpoint(model, only_query_model=False, only_block_model=False, from_realm_chkpt=False):
     """selectively load ICT models for indexing/retrieving from ICT or REALM checkpoints"""
 
     args = get_args()
