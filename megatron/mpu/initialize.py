@@ -25,6 +25,8 @@ from .utils import ensure_divisibility
 _MODEL_PARALLEL_GROUP = None
 # Data parallel group that the current rank belongs to.
 _DATA_PARALLEL_GROUP = None
+# Pipeline parallel group that the current rank belongs to.
+_PIPE_PARALLEL_GROUP = None
 
 # A group used to sync during the IO process. Usually this is data_parallel_group(),
 # but with pipeline parallelism it must also involve the last stage (which is not in the
@@ -93,6 +95,16 @@ def initialize_model_parallel(model_parallel_size_, topology=None):
             group = torch.distributed.new_group(ranks)
             if i == (rank % model_parallel_size):
                 _DATA_PARALLEL_GROUP = group
+
+    # Build pipeline parallel group
+    if topology is not None:
+        global _PIPE_PARALLEL_GROUP
+        for pp_group in topology.get_axis_comm_lists('pipe'):
+            group = torch.distributed.new_group(ranks=pp_group)
+            if rank == 0:
+                print(f'MPU PP:', pp_group)
+            if rank in pp_group:
+                _PIPE_PARALLEL_GROUP = group
 
     # Build IO group
     global _IO_PARALLEL_GROUP
@@ -216,6 +228,20 @@ def get_data_parallel_rank():
 
 def get_topology():
     return _MPU_TOPOLOGY
+
+def get_pipe_parallel_group():
+    """Get the pipe parallel group the caller rank belongs to."""
+    assert _PIPE_PARALLEL_GROUP is not None, \
+        'data parallel group is not initialized'
+    return _PIPE_PARALLEL_GROUP
+
+def get_pipe_parallel_rank():
+    """Return my rank for the pipe parallel group."""
+    return torch.distributed.get_rank(group=get_pipe_parallel_group())
+
+def get_pipe_parallel_world_size():
+    """Return world size for the pipe parallel group."""
+    return torch.distributed.get_world_size(group=get_pipe_parallel_group())
 
 
 def destroy_model_parallel():

@@ -12,8 +12,8 @@ export DLWS_NUM_WORKER=${NNODES}
 export DLWS_NUM_GPU_PER_WORKER=${GPUS_PER_NODE}
 
 DATA_PATH=data/webtext/webtext_text_document
-VOCAB_PATH=/data/users/shsmit/500b_checkpoints/gpt2-vocab.json
-MERGE_PATH=/data/users/shsmit/500b_checkpoints/gpt2-merges.txt
+VOCAB_PATH=data/gpt2-vocab.json
+MERGE_PATH=data/gpt2-merges.txt
 CHECKPOINT_PATH=checkpoints/gpt2_345m_ds
 
 script_path=$(realpath $0)
@@ -22,14 +22,16 @@ script_dir=$(dirname $script_path)
 config_json="$script_dir/ds_config.json"
 
 # Megatron Model Parallelism
-mp_size=4
+mp_size=2
 # DeepSpeed Pipeline parallelism
 pp_size=2
 
 NLAYERS=24
 NHIDDEN=1024
-BATCHSIZE=8
+BATCHSIZE=4
 LOGDIR="tensorboard_data/${NLAYERS}l_${NHIDDEN}h_${NNODES}n_${GPUS_PER_NODE}g_${pp_size}pp_${mp_size}mp_${BATCHSIZE}b_ds4"
+
+GAS=16
 
 #ZeRO Configs
 stage=0
@@ -56,6 +58,7 @@ gpt_options=" \
         --seq-length 1024 \
         --max-position-embeddings 1024 \
         --batch-size $BATCHSIZE \
+        --gas $GAS \
         --train-iters 320000 \
         --lr-decay-iters 320000 \
         --save $CHECKPOINT_PATH \
@@ -73,9 +76,9 @@ gpt_options=" \
         --clip-grad 1.0 \
         --warmup 0.01 \
         --checkpoint-activations \
-        --log-interval 100 \
-        --save-interval 10000 \
-        --eval-interval 1000 \
+        --log-interval 1 \
+        --save-interval 500 \
+        --eval-interval 100 \
         --eval-iters 10 \
         --fp16 \
         --tensorboard-dir ${LOGDIR}

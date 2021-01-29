@@ -569,6 +569,14 @@ def evaluate_and_print_results(prefix, forward_step_func,
     """Helper function to evaluate and dump results on screen."""
     writer = get_tensorboard_writer()
 
+    # Pipeline parallelism needs eval_batch() instead of a simple forward().
+    args = get_args()
+    if args.pipe_parallel_size > 0:
+        def _eval_helper(data_iter, pipe_model):
+            loss = model.eval_batch(data_iter)
+            return None, {'lm loss' : loss}
+        forward_step_func = _eval_helper
+
     total_loss_dict = evaluate(forward_step_func, data_iterator, model, verbose)
     string = ' validation loss at {} | '.format(prefix)
     for key in total_loss_dict:
@@ -598,9 +606,9 @@ def build_train_valid_test_data_iterators(
 
     # Ensure only the first/last pipeline stages have data loaders
     if args.pipe_parallel_size > 0:
-        firststage = mpu.get_pipe_parallel_rank() == 0
-        laststage = mpu.get_pipe_parallel_rank() == mpu.get_pipe_parallel_size() - 1
-        pipe_load = first_stage or last_stage
+        is_first_stage = mpu.get_pipe_parallel_rank() == 0
+        is_last_stage = mpu.get_pipe_parallel_rank() == mpu.get_pipe_parallel_world_size() - 1
+        pipe_load = is_first_stage or is_last_stage
     else:
         pipe_load = True
 
@@ -642,7 +650,7 @@ def build_train_valid_test_data_iterators(
         flags = torch.cuda.LongTensor([0, 0, 0])
 
     # Broadcast num tokens.
-    if args.pipeline_parallel_size > 0:
+    if args.pipe_parallel_size > 0:
         # Only first/last pipeline stages have data loaders, so pipeline parallelism should
         # broadcast globally instead of just the model parallel group.
         torch.distributed.broadcast(flags, src=0)

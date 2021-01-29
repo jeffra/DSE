@@ -226,6 +226,10 @@ def _add_training_args(parser):
                        help='Batch size per model instance (local batch size). '
                        'Global batch size is local batch size times data '
                        'parallel size.')
+    group.add_argument('--gas', type=int, default=1,
+                       help='Gradient accumulation steps (pipeline parallelism only). '
+                       'Global batch size is local batch size times data '
+                       'parallel size times gas.')
     group.add_argument('--checkpoint-activations', action='store_true',
                        help='Checkpoint activation to allow for training '
                        'with larger models, sequences, and batch sizes.')
