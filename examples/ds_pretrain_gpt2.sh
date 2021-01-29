@@ -12,6 +12,8 @@ export DLWS_NUM_WORKER=${NNODES}
 export DLWS_NUM_GPU_PER_WORKER=${GPUS_PER_NODE}
 
 DATA_PATH=data/webtext/webtext_text_document
+VOCAB_PATH=data/gpt2-vocab.json
+MERGE_PATH=data/gpt2-merges.txt
 CHECKPOINT_PATH=checkpoints/gpt2_345m_ds
 
 script_path=$(realpath $0)
@@ -55,8 +57,8 @@ gpt_options=" \
         --save $CHECKPOINT_PATH \
         --load $CHECKPOINT_PATH \
         --data-path $DATA_PATH \
-        --vocab-file gpt2-vocab.json \
-        --merge-file gpt2-merges.txt \
+        --vocab-file $VOCAB_PATH \
+        --merge-file $MERGE_PATH \
         --data-impl mmap \
         --split 949,50,1 \
         --distributed-backend nccl \
@@ -129,4 +131,3 @@ echo ${run_cmd}
 eval ${run_cmd}
 
 set +x
-
