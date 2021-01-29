@@ -16,6 +16,6 @@
 from .distributed import *
 from .bert_model import BertModel
 from .realm_model import ICTBertModel
-from .gpt2_model import GPT2Model
+from .gpt2_model import GPT2Model, GPT2ModelPipe
 from .utils import get_params_for_weight_decay_optimization
 from .language_model import get_language_model

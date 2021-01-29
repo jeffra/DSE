@@ -1,6 +1,6 @@
 #! /bin/bash
 
-GPUS_PER_NODE=8
+GPUS_PER_NODE=16
 # Change for multinode config
 MASTER_ADDR=localhost
 MASTER_PORT=6000

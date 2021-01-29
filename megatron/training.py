@@ -245,7 +245,7 @@ def setup_model_and_optimizer(model_provider_func):
             optimizer=optimizer,
             args=args,
             lr_scheduler=lr_scheduler,
-            mpu=mpu,
+            mpu=mpu if args.pipe_parallel_size == 0 else None,
             dist_init_required=False)
 
         if args.pipe_parallel_size > 0:

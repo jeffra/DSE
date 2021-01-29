@@ -34,6 +34,8 @@ from megatron.fp16 import fp32_to_fp16
 def model_provider():
     """Build the model."""
 
+    args = get_args()
+
     print_rank_0('building GPT2 model ...')
     if args.pipe_parallel_size == 0:
         model = GPT2Model(num_tokentypes=0, parallel_output=True)
