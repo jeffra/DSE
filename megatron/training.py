@@ -129,6 +129,10 @@ def get_model(model_provider_func):
             mpu.get_model_parallel_rank(),
             sum([p.nelement() for p in model.parameters()])), flush=True)
 
+    if args.deepspeed:
+        # DeepSpeed handles CUDA, FP16, and DDP components.
+        return model
+
     # GPU allocation.
     model.cuda(torch.cuda.current_device())
 
