@@ -28,6 +28,8 @@ from megatron.model.fused_softmax import FusedScaleMaskSoftmax
 from megatron.model.fused_bias_gelu import bias_gelu_impl
 from megatron.model.utils import openai_gelu, erf_gelu
 
+import deepspeed
+
 # flags required to enable jit fusion kernels
 torch._C._jit_set_profiling_mode(False)
 torch._C._jit_set_profiling_executor(False)
@@ -98,8 +100,8 @@ class ParallelMLP(MegatronModule):
         intermediate_parallel, bias_parallel = self.dense_h_to_4h(hidden_states)
 
         if self.bias_gelu_fusion:
-             intermediate_parallel = \
-                     bias_gelu_impl(intermediate_parallel, bias_parallel)
+            intermediate_parallel = \
+                    bias_gelu_impl(intermediate_parallel, bias_parallel)
         else:
             intermediate_parallel = \
                 self.activation_func(intermediate_parallel + bias_parallel)
@@ -171,6 +173,12 @@ class ParallelSelfAttention(MegatronModule):
             input_is_parallel=True,
             init_method=output_layer_init_method,
             skip_bias_add=True)
+
+
+        if deepspeed.checkpointing.is_configured():
+            global get_cuda_rng_tracker, checkpoint
+            get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
+            checkpoint = deepspeed.checkpointing.checkpoint
 
     def _transpose_last_dim(self, mixed_layer, num_splits, num_splits_first):
         input_shape = mixed_layer.size();
@@ -534,6 +542,11 @@ class ParallelTransformer(MegatronModule):
         self.final_layernorm = LayerNorm(
             args.hidden_size,
             eps=args.layernorm_epsilon)
+
+        if deepspeed.checkpointing.is_configured():
+            global get_cuda_rng_tracker, checkpoint
+            get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
+            checkpoint = deepspeed.checkpointing.checkpoint
 
     def _get_layer_index(self, layer_number):
         if self.param_sharing_style == 'grouped':
