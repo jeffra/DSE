@@ -240,6 +240,24 @@ class Embedding(MegatronModule):
                 print('***WARNING*** expected tokentype embeddings in the '
                       'checkpoint but could not find it', flush=True)
 
+class EmbeddingPipe(Embedding):
+    """Extends Embedding to forward attention_mask through the pipeline."""
+    @property
+    def word_embeddings_weight(self):
+        """Easy accessory for the pipeline engine to tie embeddings across stages."""
+        return self.word_embeddings.weight
+    
+    def forward(self, args):
+        input_ids = args[0]
+        position_ids = args[1]
+        attention_mask = args[2]
+        if len(args) == 4:
+            tokentype_ids = args[3]
+        else:
+            tokentype_ids = None
+        
+        embeddings = super().forward(input_ids, position_ids, tokentype_ids=tokentype_ids)
+        return embeddings, attention_mask
 
 class TransformerLanguageModel(MegatronModule):
     """Transformer language model.

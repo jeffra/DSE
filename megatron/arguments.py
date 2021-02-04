@@ -226,6 +226,10 @@ def _add_training_args(parser):
                        help='Batch size per model instance (local batch size). '
                        'Global batch size is local batch size times data '
                        'parallel size.')
+    group.add_argument('--gas', type=int, default=1,
+                       help='Gradient accumulation steps (pipeline parallelism only). '
+                       'Global batch size is local batch size times data '
+                       'parallel size times gas.')
     group.add_argument('--checkpoint-activations', action='store_true',
                        help='Checkpoint activation to allow for training '
                        'with larger models, sequences, and batch sizes.')
@@ -373,6 +377,8 @@ def _add_distributed_args(parser):
 
     group.add_argument('--model-parallel-size', type=int, default=1,
                        help='Size of the model parallel.')
+    group.add_argument('--pipe-parallel-size', type=int, default=0,
+                       help='Size of the pipeline parallel. Disable with 0.')
     group.add_argument('--distributed-backend', default='nccl',
                        choices=['nccl', 'gloo'],
                        help='Which backend to use for distributed training.')

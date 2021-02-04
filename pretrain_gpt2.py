@@ -23,18 +23,27 @@ from megatron import get_timers
 from megatron import get_tokenizer
 from megatron import mpu
 from megatron.data.gpt2_dataset import build_train_valid_test_datasets
-from megatron.model import GPT2Model
+from megatron.model import GPT2Model, GPT2ModelPipe
 from megatron.training import pretrain
 from megatron.utils import get_ltor_masks_and_position_ids
 from megatron.utils import reduce_losses
+from megatron.fp16 import fp32_to_fp16
 
 # pretend this is a great DeepSpeed change too
 
 def model_provider():
     """Build the model."""
 
+    args = get_args()
+
     print_rank_0('building GPT2 model ...')
-    model = GPT2Model(num_tokentypes=0, parallel_output=True)
+    if args.pipe_parallel_size == 0:
+        model = GPT2Model(num_tokentypes=0, parallel_output=True)
+    else:
+        model = GPT2ModelPipe(num_tokentypes=0, parallel_output=True, topology=mpu.get_topology())
+        # This is a hack to give us a reference to get_batch_pipe from within training.py
+        # We need to call model.set_batch_fn after deepspeed.initialize
+        model._megatron_batch_fn = get_batch_pipe
 
     return model
 
@@ -69,6 +78,38 @@ def get_batch(data_iterator):
         args.eod_mask_loss)
 
     return tokens, labels, loss_mask, attention_mask, position_ids
+
+def get_batch_pipe(data):
+    """A modification of get_batch() to work with the latest batch instead of an iterator. """
+    args = get_args()
+    tokenizer = get_tokenizer()
+
+    # Items and their type.
+    keys = ['text']
+    datatype = torch.int64
+
+    # Broadcast data.
+    data_b = mpu.broadcast_data(keys, data, datatype)
+
+    # Unpack.
+    tokens_ = data_b['text'].long()
+    labels = tokens_[:, 1:].contiguous()
+    tokens = tokens_[:, :-1].contiguous()
+
+    # Get the masks and postition ids.
+    attention_mask, loss_mask, position_ids = get_ltor_masks_and_position_ids(
+        tokens,
+        tokenizer.eod,
+        args.reset_position_ids,
+        args.reset_attention_mask,
+        args.eod_mask_loss)
+
+    # unpack data
+    if args.fp16:
+        # cast to fp16 because pipeline parallelism skips the FP16 wrapper.
+        return fp32_to_fp16((tokens, position_ids, attention_mask)), fp32_to_fp16((labels, loss_mask))
+    else:
+        return (tokens, position_ids, attention_mask), (labels, loss_mask)
 
 
 def forward_step(data_iterator, model):

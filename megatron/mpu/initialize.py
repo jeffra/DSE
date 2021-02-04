@@ -25,18 +25,27 @@ from .utils import ensure_divisibility
 _MODEL_PARALLEL_GROUP = None
 # Data parallel group that the current rank belongs to.
 _DATA_PARALLEL_GROUP = None
+# Pipeline parallel group that the current rank belongs to.
+_PIPE_PARALLEL_GROUP = None
+
+# A group used to sync during the IO process. Usually this is data_parallel_group(),
+# but with pipeline parallelism it must also involve the last stage (which is not in the
+# DP group of rank 0)
+_IO_PARALLEL_GROUP = None 
 
 # These values enable us to change the mpu sizes on the fly.
 _MPU_WORLD_SIZE = None
 _MPU_RANK = None
 
+# Used to query 3D topology
+_MPU_TOPOLOGY = None
 
 def is_unitialized():
     """Useful for code segments that may be accessed with or without mpu initialization"""
     return _DATA_PARALLEL_GROUP is None
 
 
-def initialize_model_parallel(model_parallel_size_):
+def initialize_model_parallel(model_parallel_size_, topology=None):
     """
     Initialize model data parallel groups.
 
@@ -65,27 +74,85 @@ def initialize_model_parallel(model_parallel_size_):
     ensure_divisibility(world_size, model_parallel_size)
     rank = torch.distributed.get_rank()
 
+    global _MPU_TOPOLOGY
+    if topology:
+        _MPU_TOPOLOGY = topology
+
     # Build the data parallel groups.
     global _DATA_PARALLEL_GROUP
     assert _DATA_PARALLEL_GROUP is None, \
         'data parallel group is already initialized'
-    for i in range(model_parallel_size):
-        ranks = range(i, world_size, model_parallel_size)
-        group = torch.distributed.new_group(ranks)
-        if i == (rank % model_parallel_size):
-            _DATA_PARALLEL_GROUP = group
+    if topology:
+        for dp_group in topology.get_axis_comm_lists('data'):
+            group = torch.distributed.new_group(ranks=dp_group)
+            if rank == 0:
+                print(f'MPU DP:', dp_group)
+            if rank in dp_group:
+                _DATA_PARALLEL_GROUP = group
+    else:
+        for i in range(model_parallel_size):
+            ranks = range(i, world_size, model_parallel_size)
+            group = torch.distributed.new_group(ranks)
+            if i == (rank % model_parallel_size):
+                _DATA_PARALLEL_GROUP = group
+
+    # Build pipeline parallel group
+    if topology is not None:
+        global _PIPE_PARALLEL_GROUP
+        for pp_group in topology.get_axis_comm_lists('pipe'):
+            group = torch.distributed.new_group(ranks=pp_group)
+            if rank == 0:
+                print(f'MPU PP:', pp_group)
+            if rank in pp_group:
+                _PIPE_PARALLEL_GROUP = group
+
+    # Build IO group
+    global _IO_PARALLEL_GROUP
+    if topology and topology.get_dim('pipe') > 1:
+        io_stages = [0, topology.get_dim('pipe') - 1]
+        io_group = []
+        for stage in io_stages:
+            io_group.extend(topology.filter_match(pipe=stage, model=0))
+        if rank == 0:
+            print(f'MPU IO:', io_group)
+        group = torch.distributed.new_group(ranks=io_group)
+        if rank in io_group:
+            _IO_PARALLEL_GROUP = group
+    else:
+        _IO_PARALLEL_GROUP = get_data_parallel_group()
+
 
     # Build the model parallel groups.
     global _MODEL_PARALLEL_GROUP
     assert _MODEL_PARALLEL_GROUP is None, \
         'model parallel group is already initialized'
-    for i in range(world_size // model_parallel_size):
-        ranks = range(i * model_parallel_size,
-                      (i + 1) * model_parallel_size)
-        group = torch.distributed.new_group(ranks)
-        if i == (rank // model_parallel_size):
-            _MODEL_PARALLEL_GROUP = group
+    if topology:
+        # Short circuit case without model parallelism.
+        # TODO: it would be nice  to avoid this branching case?
+        if model_parallel_size == 1:
+            for group_rank in range(world_size):
+                group = torch.distributed.new_group(ranks=[group_rank])
+                if rank == 0:
+                    print(f'MPU MP:', [group_rank])
+                if rank == group_rank:
+                    _MODEL_PARALLEL_GROUP = group
+            return
 
+        for mp_group in topology.get_axis_comm_lists('model'):
+            group = torch.distributed.new_group(ranks=mp_group)
+            if rank == 0:
+                print(f'MPU MP:', mp_group)
+            if rank in mp_group:
+                _MODEL_PARALLEL_GROUP = group
+
+    else:
+        for i in range(world_size // model_parallel_size):
+            ranks = range(i * model_parallel_size,
+                        (i + 1) * model_parallel_size)
+            group = torch.distributed.new_group(ranks)
+            if i == (rank // model_parallel_size):
+                _MODEL_PARALLEL_GROUP = group
+    
 
 def model_parallel_is_initialized():
     """Check if model and data parallel groups are initialized."""
@@ -106,6 +173,12 @@ def get_data_parallel_group():
     assert _DATA_PARALLEL_GROUP is not None, \
         'data parallel group is not initialized'
     return _DATA_PARALLEL_GROUP
+
+def get_io_parallel_group():
+    """Get the IO parallel group the caller rank belongs to."""
+    assert _IO_PARALLEL_GROUP is not None, \
+        'IO parallel group is not initialized'
+    return _IO_PARALLEL_GROUP
 
 
 def set_model_parallel_world_size(world_size):
@@ -152,6 +225,23 @@ def get_data_parallel_world_size():
 def get_data_parallel_rank():
     """Return my rank for the data parallel group."""
     return torch.distributed.get_rank(group=get_data_parallel_group())
+
+def get_topology():
+    return _MPU_TOPOLOGY
+
+def get_pipe_parallel_group():
+    """Get the pipe parallel group the caller rank belongs to."""
+    assert _PIPE_PARALLEL_GROUP is not None, \
+        'data parallel group is not initialized'
+    return _PIPE_PARALLEL_GROUP
+
+def get_pipe_parallel_rank():
+    """Return my rank for the pipe parallel group."""
+    return torch.distributed.get_rank(group=get_pipe_parallel_group())
+
+def get_pipe_parallel_world_size():
+    """Return world size for the pipe parallel group."""
+    return torch.distributed.get_world_size(group=get_pipe_parallel_group())
 
 
 def destroy_model_parallel():

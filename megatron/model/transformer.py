@@ -499,6 +499,11 @@ class ParallelTransformerLayer(MegatronModule):
 
         return output
 
+class ParallelTransformerLayerPipe(ParallelTransformerLayer):
+    """Extends ParallelTransformerLayer to forward attention_mask through the pipeline. """
+    def forward(self, args):
+        hidden_states, attention_mask = args[0], args[1]
+        return super().forward(*args), attention_mask
 
 class ParallelTransformer(MegatronModule):
     """Transformer class."""

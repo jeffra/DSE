@@ -155,12 +155,32 @@ def _initialize_distributed():
             world_size=args.world_size, rank=args.rank,
             init_method=init_method)
 
+    # Setup 3D topology.
+    if args.pipe_parallel_size > 0:
+        pp = args.pipe_parallel_size
+        mp = args.model_parallel_size
+        assert args.world_size % (pp * mp) == 0
+        dp = args.world_size // (pp * mp)
+
+        from deepspeed.runtime.pipe.topology import PipeModelDataParallelTopology
+        topo = PipeModelDataParallelTopology(num_pp=pp, num_mp=mp, num_dp=dp)
+
+        # Offset base seeds for the interior pipeline stages.
+        # TODO: adjust last stage too once IO is improved.
+        stage_id = topo.get_coord(rank=torch.distributed.get_rank()).pipe
+        if 0 < stage_id < topo.get_dim('pipe') - 1:
+            offset = args.seed + 1138
+            args.seed = offset + (stage_id * mp)
+    else:
+        topo = None
+
+
     # Set the model-parallel / data-parallel communicators.
     if device_count > 0:
         if mpu.model_parallel_is_initialized():
             print('model parallel is already initialized')
         else:
-            mpu.initialize_model_parallel(args.model_parallel_size)
+            mpu.initialize_model_parallel(args.model_parallel_size, topology=topo)
 
     # Optional DeepSpeed Activation Checkpointing Features
     #

@@ -203,9 +203,9 @@ def _build_index_mappings(name, data_prefix, documents, sizes,
     # device_index=rank which is not the case for model
     # parallel case
     counts = torch.cuda.LongTensor([1])
-    torch.distributed.all_reduce(counts, group=mpu.get_data_parallel_group())
+    torch.distributed.all_reduce(counts, group=mpu.get_io_parallel_group())
     assert counts[0].item() == torch.distributed.get_world_size(
-        group=mpu.get_data_parallel_group())
+        group=mpu.get_io_parallel_group())
 
     # Load mappings.
     start_time = time.time()
