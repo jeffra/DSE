@@ -248,16 +248,16 @@ class ColumnParallelLinear(torch.nn.Module):
         # Initialize weight.
         args = get_args()
         if args.use_cpu_initialization:
-            self.weight = Parameter(torch.empty(self.output_size_per_partition,
-                                                self.input_size,
+            self.weight = Parameter(torch.empty(self.input_size,
+                                                self.output_size_per_partition,
                                                 dtype=args.params_dtype))
             self.master_weight = _initialize_affine_weight_cpu(
-                self.weight, self.output_size, self.input_size,
+                self.weight, self.input_size, self.output_size,
                 self.output_size_per_partition, 0, init_method,
                 stride=stride, return_master_weight=keep_master_weight_for_test)
         else:
             self.weight = Parameter(torch.empty(
-                self.output_size_per_partition, self.input_size,
+                 self.input_size,self.output_size_per_partition,
                 device=torch.cuda.current_device(), dtype=args.params_dtype))
             _initialize_affine_weight_gpu(self.weight, init_method,
                                           partition_dim=0, stride=stride)
@@ -285,8 +285,12 @@ class ColumnParallelLinear(torch.nn.Module):
         input_parallel = copy_to_tensor_model_parallel_region(input_)
         # Matrix multiply.
 
-        bias = self.bias if not self.skip_bias_add else None
-        output_parallel = F.linear(input_parallel, self.weight, bias)
+        #bias = self.bias if not self.skip_bias_add else None
+        #output_parallel = F.linear(input_parallel, self.weight, bias)
+        output_parallel = torch.matmul(input_parallel, self.weight)
+        if not self.skip_bias_add:
+            output_parallel += self.bias
+
         if self.gather_output:
             # All-gather across the partitions.
             output = gather_from_tensor_model_parallel_region(output_parallel)
@@ -348,16 +352,16 @@ class RowParallelLinear(torch.nn.Module):
         # Initialize weight.
         args = get_args()
         if args.use_cpu_initialization:
-            self.weight = Parameter(torch.empty(self.output_size,
-                                                self.input_size_per_partition,
+            self.weight = Parameter(torch.empty(self.input_size_per_partition,
+                                                self.output_size,
                                                 dtype=args.params_dtype))
             self.master_weight = _initialize_affine_weight_cpu(
-                self.weight, self.output_size, self.input_size,
+                self.weight, self.input_size, self.output_size,
                 self.input_size_per_partition, 1, init_method,
                 stride=stride, return_master_weight=keep_master_weight_for_test)
         else:
             self.weight = Parameter(torch.empty(
-                self.output_size, self.input_size_per_partition,
+                 self.input_size_per_partition,self.output_size,
                 device=torch.cuda.current_device(), dtype=args.params_dtype))
             _initialize_affine_weight_gpu(self.weight, init_method,
                                           partition_dim=1, stride=stride)
@@ -384,7 +388,9 @@ class RowParallelLinear(torch.nn.Module):
         else:
             input_parallel = scatter_to_tensor_model_parallel_region(input_)
         # Matrix multiply.
-        output_parallel = F.linear(input_parallel, self.weight)
+        #output_parallel = F.linear(input_parallel, self.weight)
+        output_parallel = torch.matmul(input_parallel, self.weight)
+        
         # All-reduce across all the partitions.
         output_ = reduce_from_tensor_model_parallel_region(output_parallel)
         if not self.skip_bias_add:
