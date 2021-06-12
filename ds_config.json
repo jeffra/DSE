@@ -1,0 +1,4 @@
+{
+  "train_batch_size": 4,
+  "steps_per_print": 4000
+}
