@@ -13,3 +13,7 @@
 [submodule "megatron-lm/baseline"]
 	path = megatron-lm/baseline
 	url = https://github.com/jeffra/DSE.git
+[submodule "DSE"]
+	path = mega-ds
+	url = https://github.com/jeffra/DSE.git
+	branch = megatron-deepspeed
