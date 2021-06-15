@@ -68,7 +68,7 @@ def forward_step(forward_step_func, data_iterator, model, input_tensor, losses_r
     return output_tensor
 
 
-def backward_step(optimizer, input_tensor, output_tensor, output_tensor_grad, model):
+def backward_step(optimizer, input_tensor, output_tensor, output_tensor_grad, model=None):
     """Backward step through passed-in output tensor.
 
     If last stage, output_tensor_grad is None, otherwise gradient of loss
@@ -77,6 +77,9 @@ def backward_step(optimizer, input_tensor, output_tensor, output_tensor_grad, mo
     Returns gradient of loss with respect to input tensor (None if first
     stage)."""
     args = get_args()
+
+    if args.deepspeed:
+        assert model is not None
 
     timers = get_timers()
     timers('backward-compute').start()
@@ -435,7 +438,7 @@ def forward_backward_pipelining_without_interleaving(forward_step_func, data_ite
 
             input_tensor_grad = \
                 backward_step(optimizer, input_tensor, output_tensor,
-                              output_tensor_grad)
+                              output_tensor_grad, model)
 
             if last_iteration:
                 input_tensor = None
@@ -455,7 +458,7 @@ def forward_backward_pipelining_without_interleaving(forward_step_func, data_ite
 
             input_tensor_grad = \
                 backward_step(optimizer, input_tensor, output_tensor,
-                              output_tensor_grad)
+                              output_tensor_grad, model)
 
             p2p_communication.send_backward(input_tensor_grad, timers)
 
